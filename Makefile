@@ -10,8 +10,8 @@ CPP=$(toolchain)/pre/bin/arm-apple-darwin9-g++.exe
 LD=$(CC)
 SDK=$(toolchain)/sys
 DEBUG=DEBUGOFF
-ifneq (,$(wildcard Debian/control))
-DEBNAME:=$(shell grep ^Package: Debian/control | cut -d ' ' -f 2).$(shell grep ^Version: Debian/control | cut -d ' ' -f 2).deb
+ifneq (,$(wildcard layout/DEBIAN/control))
+DEBNAME:=$(shell grep ^Package: layout/DEBIAN/control | cut -d ' ' -f 2).$(shell grep ^Version: layout/DEBIAN/control | cut -d ' ' -f 2).deb
 endif
 
 LDFLAGS = -arch arm -lobjc
@@ -80,19 +80,19 @@ clean:
 
 install:	all
 		cp "$(dylib_obj)" "/Library/MobileSubstrate/DynamicLibraries/"
-ifneq ($(PROJECTNAME).plist,)
+ifneq (,$(wildcard $(PROJECTNAME).plist))
 		cp "$(PROJECTNAME).plist" "/Library/MobileSubstrate/DynamicLibraries/"
 endif
-ifneq ($(BUNDLENAME).plist,)
+ifneq (,$(wildcard $(BUNDLENAME).plist))
 		cp "$(BUNDLENAME).plist" "/Library/PreferenceLoader/Preferences/$(PROJECTNAME).plist"
 endif
-ifneq ($(BUNDLENAME)Icon.png,)
+ifneq (,$(wildcard $(BUNDLENAME)Icon.png))
 		cp "$(BUNDLENAME)Icon.png" "/Library/PreferenceLoader/Preferences/$(PROJECTNAME)Icon.png"
 endif
-ifneq ($(BUNDLENAME)Icon@2x.png,)
+ifneq (,$(wildcard $(BUNDLENAME)Icon@2x.png))
 		cp "$(BUNDLENAME)Icon@2x.png" "/Library/PreferenceLoader/Preferences/$(PROJECTNAME)Icon@2x.png"
 endif
-ifneq ($(bndl_obj),)
+ifneq (,$(wildcard $(bndl_obj)))
 		rm -fr /System/Library/PreferenceBundles/$(BUNDLENAME).bundle 
 		mkdir -p /System/Library/PreferenceBundles/$(BUNDLENAME).bundle
 		cp $(bndl_obj) /System/Library/PreferenceBundles/$(BUNDLENAME).bundle/
@@ -111,35 +111,32 @@ uninstall:
 		killall SpringBoard
 
 package:	all
-		rm -f ${DEBNAME}
-		rm -fr package
-		mkdir -p package/DEBIAN
-		cp Debian/control package/DEBIAN/
-		cp Debian/prerm package/DEBIAN/
-		cp Debian/preinst package/DEBIAN/
-		mkdir -p package/Library/MobileSubstrate/DynamicLibraries
-		cp "$(dylib_obj)" "package/Library/MobileSubstrate/DynamicLibraries/"
-ifneq ($(PROJECTNAME).plist,)
-		cp "$(PROJECTNAME).plist" "package/Library/MobileSubstrate/DynamicLibraries/"
+		rm -f ${DEBNAME} data.tar.gz control.tar.gz
+		mkdir -p layout/Library/MobileSubstrate/DynamicLibraries
+		cp "$(dylib_obj)" "layout/Library/MobileSubstrate/DynamicLibraries/"
+ifneq (,$(wildcard $(PROJECTNAME).plist))
+		cp "$(PROJECTNAME).plist" "layout/Library/MobileSubstrate/DynamicLibraries/"
 endif
-ifneq ($(BUNDLENAME).plist,)
-		mkdir -p package/Library/PreferenceLoader/Preferences
-		cp "$(BUNDLENAME).plist" "package/Library/PreferenceLoader/Preferences/$(PROJECTNAME).plist"
+ifneq (,$(wildcard $(BUNDLENAME).plist))
+		mkdir -p layout/Library/PreferenceLoader/Preferences
+		cp "$(BUNDLENAME).plist" "layout/Library/PreferenceLoader/Preferences/$(PROJECTNAME).plist"
 endif
-ifneq ($(BUNDLENAME)Icon.png,)
-		cp "$(BUNDLENAME)Icon.png" "package/Library/PreferenceLoader/Preferences/$(PROJECTNAME)Icon.png"
+ifneq (,$(wildcard $(BUNDLENAME)Icon.png))
+		cp "$(BUNDLENAME)Icon.png" "layout/Library/PreferenceLoader/Preferences/$(PROJECTNAME)Icon.png"
 endif
-ifneq ($(BUNDLENAME)Icon@2x.png,)
-		cp "$(BUNDLENAME)Icon@2x.png" "package/Library/PreferenceLoader/Preferences/$(PROJECTNAME)Icon@2x.png"
+ifneq (,$(wildcard $(BUNDLENAME)Icon@2x.png))
+		cp "$(BUNDLENAME)Icon@2x.png" "layout/Library/PreferenceLoader/Preferences/$(PROJECTNAME)Icon@2x.png"
 endif
-ifneq ($(bndl_obj),)
-		mkdir -p package/System/Library/PreferenceBundles/$(BUNDLENAME).bundle
-		cp $(bndl_obj) package/System/Library/PreferenceBundles/$(BUNDLENAME).bundle/
-		cp AdsKillerSettingsController.plist package/System/Library/PreferenceBundles/$(BUNDLENAME).bundle/
-		cp Info.plist package/System/Library/PreferenceBundles/$(BUNDLENAME).bundle/
+ifneq (,$(wildcard $(bndl_obj)))
+		mkdir -p layout/System/Library/PreferenceBundles/$(BUNDLENAME).bundle
+		cp $(bndl_obj) layout/System/Library/PreferenceBundles/$(BUNDLENAME).bundle/
+		cp $(PROJECTNAME)SettingsController.plist layout/System/Library/PreferenceBundles/$(BUNDLENAME).bundle/
+		cp Info.plist layout/System/Library/PreferenceBundles/$(BUNDLENAME).bundle/
 endif
-		dpkg-deb -b package "${DEBNAME}"
-		cp Debian/control Packages.txt
+		cd layout/DEBIAN; tar czvf ../../control.tar.gz *; cd ../..
+		cd layout; tar czvf ../data.tar.gz ./System ./Library; cd .. 
+		ar r $(DEBNAME) data.tar.gz control.tar.gz
+		cp layout/DEBIAN/control Packages.txt
 		./showdeb.sh "${DEBNAME}" >> Packages.txt
 
 .PHONY: all install uninstall package clean
